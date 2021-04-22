@@ -1,16 +1,22 @@
 require 'minitest/autorun'
+require 'byebug'
 
-class Coffee
-  attr_reader :color
+class Point
+  attr_reader :x, :y, :z
 
-  def initialize
-    @color = :black
+  def initialize(x:, y:, z:)
+    @x = x
+    @y = y
+    @z = z
   end
 end
 
-class CoffeeTest < Minitest::Test
-  def test_color
-    fresh_coffee = Coffee.new
-    assert fresh_coffee.color == :black
+class PointTest < Minitest::Test
+  def test_coords
+    point = Point.new(x: 1, y: 2, z: 3)
+
+    assert point.x == 1
+    assert point.y == 2
+    assert point.z == 3
   end
 end
