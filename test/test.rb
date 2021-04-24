@@ -26,7 +26,10 @@ class Transfrom
   end
 
   def execute
-    points
+    points_string = points.map { |p| "#{p.y} #{p.x} #{p.z}" }.join("\n")
+    %x{echo '#{points_string}' | cs2cs -d 9 EPSG:4326 EPSG:6691}.split("\n")
+      .map { |p| p.split(" ").map(&:to_f) }
+      .map { |x, y, z| Point.new(x: x, y: y, z: z)  }
   end
 
   private
@@ -62,6 +65,6 @@ class PointTest < Minitest::Test
 
   def test_equality
     assert_equal Point.new(x: 1, y: 2, z: 3), Point.new(x: 1, y: 2, z: 3)
-    assert_not_equal Point.new(x: 2, y: 2, z: 3), Point.new(x: 1, y: 2, z: 3)
+    assert Point.new(x: 2, y: 2, z: 3) != Point.new(x: 1, y: 2, z: 3)
   end
 end
