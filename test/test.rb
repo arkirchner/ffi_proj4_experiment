@@ -3,12 +3,16 @@ require 'byebug'
 
 class Parser
   POINT = /\APOINT\ \((?<points>.+)\)\z/
+  POINT_Z = /\APOINT\ Z\ \((?<points>.+)\)\z/
 
   def self.from_wkt(well_known_text)
     points_text = case well_known_text
                   when POINT
                     type = :point
                     well_known_text.match(POINT)[:points]
+                  when POINT_Z
+                    type = :point_z
+                    well_known_text.match(POINT_Z)[:points]
                   else
                     raise "Unsupported format: #{well_known_text}"
                   end
@@ -30,6 +34,9 @@ class Parser
     when :point
       point = points.first
       "POINT (#{point.x} #{point.y})"
+    when :point_z
+      point = points.first
+      "POINT Z (#{point.x} #{point.y} #{point.z})"
     end
   end
 
@@ -46,12 +53,12 @@ class ParserTest < Minitest::Test
     assert_equal parser.points, [Point.new(x: 30, y: 10, z: nil)]
   end
 
-  # def test_point_z_parsing
-  #   parser = Parser.from_wkt('POINT Z (30 10 5)')
+  def test_point_z_parsing
+    parser = Parser.from_wkt('POINT Z (30 10 5)')
 
-  #   assert_equal parser.to_wkt, 'POINT Z (30 10 5)'
-  #   assert_equal parser.points, [Point.new(x: 30, y: 10, z: 5)]
-  # end
+    assert_equal parser.to_wkt, 'POINT Z (30 10 5)'
+    assert_equal parser.points, [Point.new(x: 30, y: 10, z: 5)]
+  end
 
   # def test_line_string_parsing
   #   parser = Parser.from_wkt('LINESTRING (30 10, 10 30, 40 40)')
