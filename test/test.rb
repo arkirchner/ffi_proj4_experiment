@@ -4,6 +4,8 @@ require 'byebug'
 class Parser
   POINT = /\APOINT\ \((?<points>[\d\.\ ]+)\)\z/
   POINT_Z = /\APOINT\ Z\ \((?<points>[\d\.\ ]+)\)\z/
+  LINESTRING = /\ALINESTRING\ \((?<points>[\d\.,\ ]+)\)\z/
+  LINESTRING_Z = /\ALINESTRING\ Z\ \((?<points>[\d\.,\ ]+)\)\z/
 
   def self.from_wkt(well_known_text)
     points_text = case well_known_text
@@ -13,6 +15,12 @@ class Parser
                   when POINT_Z
                     type = :point_z
                     well_known_text.match(POINT_Z)[:points]
+                  when LINESTRING
+                    type = :linestring
+                    well_known_text.match(LINESTRING)[:points]
+                  when LINESTRING_Z
+                    type = :linestring_z
+                    well_known_text.match(LINESTRING_Z)[:points]
                   else
                     raise "Unsupported format: #{well_known_text}"
                   end
@@ -37,6 +45,10 @@ class Parser
     when :point_z
       point = points.first
       "POINT Z (#{point.x} #{point.y} #{point.z})"
+    when :linestring
+      "LINESTRING (#{points.map { |p| "#{p.x} #{p.y}" }.join(', ')})"
+    when :linestring_z
+      "LINESTRING Z (#{points.map { |p| "#{p.x} #{p.y} #{p.z}" }.join(', ')})"
     end
   end
 
@@ -60,27 +72,27 @@ class ParserTest < Minitest::Test
     assert_equal parser.points, [Point.new(x: 30, y: 10, z: 5)]
   end
 
-  # def test_line_string_parsing
-  #   parser = Parser.from_wkt('LINESTRING (30 10, 10 30, 40 40)')
+  def test_line_string_parsing
+    parser = Parser.from_wkt('LINESTRING (30 10, 10 30, 40 40)')
 
-  #   assert_equal parser.to_wkt, 'LINESTRING (30 10, 10 30, 40 40)'
-  #   assert_equal parser.points, [
-  #     Point.new(x: 30, y: 10, z: nil),
-  #     Point.new(x: 10, y: 30, z: nil),
-  #     Point.new(x: 40, y: 40, z: nil)
-  #   ]
-  # end
+    assert_equal parser.to_wkt, 'LINESTRING (30 10, 10 30, 40 40)'
+    assert_equal parser.points, [
+      Point.new(x: 30, y: 10, z: nil),
+      Point.new(x: 10, y: 30, z: nil),
+      Point.new(x: 40, y: 40, z: nil)
+    ]
+  end
 
-  # def test_line_string_z_parsing
-  #   parser = Parser.from_wkt('LINESTRING Z (30 10 40, 10 30 20, 40 40 10)')
+  def test_line_string_z_parsing
+    parser = Parser.from_wkt('LINESTRING Z (30 10 40, 10 30 20, 40 40 10)')
 
-  #   assert_equal parser.to_wkt, 'LINESTRING Z (30 10 40, 10 30 20, 40 40 10)'
-  #   assert_equal parser.points, [
-  #     Point.new(x: 30, y: 10, z: 40),
-  #     Point.new(x: 10, y: 30, z: 20),
-  #     Point.new(x: 40, y: 40, z: 10)
-  #   ]
-  # end
+    assert_equal parser.to_wkt, 'LINESTRING Z (30 10 40, 10 30 20, 40 40 10)'
+    assert_equal parser.points, [
+      Point.new(x: 30, y: 10, z: 40),
+      Point.new(x: 10, y: 30, z: 20),
+      Point.new(x: 40, y: 40, z: 10)
+    ]
+  end
 end
 
 class Point
