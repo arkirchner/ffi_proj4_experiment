@@ -5,24 +5,32 @@ class Parser
   POINT = /\APOINT\ \((?<points>.+)\)\z/
 
   def self.from_wkt(well_known_text)
-    case well_known_text
-    when POINT
-      new(well_known_text)
-    else
-      raise "Unsupported format: #{well_known_text}"
-    end
-  end
+    points_text = case well_known_text
+                  when POINT
+                    type = :point
+                    well_known_text.match(POINT)[:points]
+                  else
+                    raise "Unsupported format: #{well_known_text}"
+                  end
 
-  def initialize(wkt)
-    @wkt = wkt
-    @points = wkt.match(POINT)[:points].split(',').map do |wkt_point|
-      x, y, z = wkt_point.split(" ")
+    points = points_text.split(',').map { |point_text| point_text.split(' ') }.map do |x, y, z|
       Point.new(x: x, y: y, z: z)
     end
+
+    new(points, type)
+  end
+
+  def initialize(points, type)
+    @points = points
+    @type = type
   end
 
   def to_wkt
-    @wkt
+    case @type
+    when :point
+      point = points.first
+      "POINT (#{point.x} #{point.y})"
+    end
   end
 
   def points
