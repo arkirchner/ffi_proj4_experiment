@@ -2,8 +2,8 @@ require 'minitest/autorun'
 require 'byebug'
 
 class Parser
-  POINT = /\APOINT\ \((?<points>.+)\)\z/
-  POINT_Z = /\APOINT\ Z\ \((?<points>.+)\)\z/
+  POINT = /\APOINT\ \((?<points>[\d\.\ ]+)\)\z/
+  POINT_Z = /\APOINT\ Z\ \((?<points>[\d\.\ ]+)\)\z/
 
   def self.from_wkt(well_known_text)
     points_text = case well_known_text
