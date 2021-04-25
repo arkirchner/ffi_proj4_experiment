@@ -5,7 +5,12 @@ class Parser
   POINT = /\APOINT\ \((?<points>.+)\)\z/
 
   def self.from_wkt(well_known_text)
-    new(well_known_text)
+    case well_known_text
+    when POINT
+      new(well_known_text)
+    else
+      raise "Unsupported format: #{well_known_text}"
+    end
   end
 
   def initialize(wkt)
