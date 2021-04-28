@@ -2,10 +2,10 @@ require 'minitest/autorun'
 require 'byebug'
 
 class Parser
-  POINT = /\APOINT\ \((?<points>[\d\.\ ]+)\)\z/
-  POINT_Z = /\APOINT\ Z\ \((?<points>[\d\.\ ]+)\)\z/
-  LINESTRING = /\ALINESTRING\ \((?<points>[\d\.,\ ]+)\)\z/
-  LINESTRING_Z = /\ALINESTRING\ Z\ \((?<points>[\d\.,\ ]+)\)\z/
+  POINT = /\APOINT\ ?\((?<points>[\d\.\-\ ]+)\)\z/
+  POINT_Z = /\APOINT\ ?Z\ \((?<points>[\d\.\-\ ]+)\)\z/
+  LINESTRING = /\ALINESTRING\ ?\((?<points>[\d\.,\-\ ]+)\)\z$/
+  LINESTRING_Z = /\ALINESTRING\ ?Z\ \((?<points>[\d\.,\-\ ]+)\)\z/
 
   def self.from_wkt(well_known_text)
     points_text = case well_known_text
@@ -23,7 +23,7 @@ class Parser
                     well_known_text.match(LINESTRING_Z)[:points]
                   else
                     raise "Unsupported format: #{well_known_text}"
-                  end
+                  end.strip
 
     points = points_text.split(',').map { |point_text| point_text.split(' ') }.map do |x, y, z|
       Point.new(x: x, y: y, z: z)
@@ -61,21 +61,21 @@ class ParserTest < Minitest::Test
   def test_point_parsing
     parser = Parser.from_wkt('POINT (30 10)')
 
-    assert_equal parser.to_wkt, 'POINT (30 10)'
+    assert_equal parser.to_wkt, 'POINT (30.0 10.0)'
     assert_equal parser.points, [Point.new(x: 30, y: 10, z: nil)]
   end
 
   def test_point_z_parsing
     parser = Parser.from_wkt('POINT Z (30 10 5)')
 
-    assert_equal parser.to_wkt, 'POINT Z (30 10 5)'
+    assert_equal parser.to_wkt, 'POINT Z (30.0 10.0 5.0)'
     assert_equal parser.points, [Point.new(x: 30, y: 10, z: 5)]
   end
 
   def test_line_string_parsing
     parser = Parser.from_wkt('LINESTRING (30 10, 10 30, 40 40)')
 
-    assert_equal parser.to_wkt, 'LINESTRING (30 10, 10 30, 40 40)'
+    assert_equal parser.to_wkt, 'LINESTRING (30.0 10.0, 10.0 30.0, 40.0 40.0)'
     assert_equal parser.points, [
       Point.new(x: 30, y: 10, z: nil),
       Point.new(x: 10, y: 30, z: nil),
@@ -86,7 +86,7 @@ class ParserTest < Minitest::Test
   def test_line_string_z_parsing
     parser = Parser.from_wkt('LINESTRING Z (30 10 40, 10 30 20, 40 40 10)')
 
-    assert_equal parser.to_wkt, 'LINESTRING Z (30 10 40, 10 30 20, 40 40 10)'
+    assert_equal parser.to_wkt, 'LINESTRING Z (30.0 10.0 40.0, 10.0 30.0 20.0, 40.0 40.0 10.0)'
     assert_equal parser.points, [
       Point.new(x: 30, y: 10, z: 40),
       Point.new(x: 10, y: 30, z: 20),
@@ -100,16 +100,16 @@ class Point
 
 
   def initialize(x:, y:, z:)
-    @x = x.is_a?(String) ? x.to_i : x
-    @y = y.is_a?(String) ? y.to_i : y
-    @z = z.is_a?(String) ? z.to_i : z
+    @x = x.is_a?(String) ? x.to_f : x
+    @y = y.is_a?(String) ? y.to_f : y
+    @z = z.is_a?(String) ? z.to_f : z || 0.0
   end
 
   def ==(other)
     self.class == other.class &&
-    x == other.x &&
-    y == other.y &&
-    z == other.z
+    x.round(5) == other.x.round(5) &&
+    y.round(5) == other.y.round(5) &&
+    z.floor(12) == other.z.floor(12)
   end
 
   alias :eql? :==
@@ -122,7 +122,7 @@ class Transfrom
 
   def execute
     points_string = points.map { |p| "#{p.y} #{p.x} #{p.z}" }.join("\n")
-    %x{echo '#{points_string}' | cs2cs -d 9 EPSG:4326 EPSG:6691}.split("\n")
+    %x{echo '#{points_string}' | cs2cs -d 12 EPSG:4326 EPSG:6691}.split("\n")
       .map { |p| p.split(" ").map(&:to_f) }
       .map { |x, y, z| Point.new(x: x, y: y, z: z)  }
   end
@@ -133,6 +133,24 @@ class Transfrom
 end
 
 class TransfromTest < Minitest::Test
+  def test_long_2d_linestings
+    long_2d_4326_points = Parser.from_wkt(File.open("test/long_2d_4326_linestring.txt").read.strip).points
+    long_2d_6691_points = Parser.from_wkt(File.open("test/long_2d_6691_linestring.txt").read.strip).points
+
+    assert_equal Transfrom.new(long_2d_4326_points).execute, long_2d_6691_points
+  end
+
+  def test_long_2d_linestings
+    long_3d_4326_points = Parser.from_wkt(File.open("test/long_3d_4326_linestring.txt").read.strip).points
+    long_3d_6691_points = Parser.from_wkt(File.open("test/long_3d_6691_linestring.txt").read.strip).points
+
+    Transfrom.new(long_3d_4326_points).execute.zip(long_3d_6691_points).each do |p_a, p_b|
+      byebug if p_a != p_b
+    end
+
+    assert_equal Transfrom.new(long_3d_4326_points).execute, long_3d_6691_points
+  end
+
   def test_point_6691_transformation
     points = [Point.new(x: 1, y: 2, z: 3), Point.new(x: 4, y: 5, z: 6)]
     # SELECT ST_AsText(
