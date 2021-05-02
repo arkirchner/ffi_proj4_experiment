@@ -41,12 +41,12 @@ class Parser
     case @type
     when :point
       point = points.first
-      "POINT (#{point.x} #{point.y})"
+      "POINT(#{point.x} #{point.y})"
     when :point_z
       point = points.first
       "POINT Z (#{point.x} #{point.y} #{point.z})"
     when :linestring
-      "LINESTRING (#{points.map { |p| "#{p.x} #{p.y}" }.join(', ')})"
+      "LINESTRING(#{points.map { |p| "#{p.x} #{p.y}" }.join(', ')})"
     when :linestring_z
       "LINESTRING Z (#{points.map { |p| "#{p.x} #{p.y} #{p.z}" }.join(', ')})"
     end
@@ -59,9 +59,9 @@ end
 
 class ParserTest < Minitest::Test
   def test_point_parsing
-    parser = Parser.from_wkt('POINT (30 10)')
+    parser = Parser.from_wkt('POINT(30.0 10.0)')
 
-    assert_equal parser.to_wkt, 'POINT (30.0 10.0)'
+    assert_equal parser.to_wkt, 'POINT(30.0 10.0)'
     assert_equal parser.points, [Point.new(x: 30, y: 10, z: nil)]
   end
 
@@ -73,9 +73,9 @@ class ParserTest < Minitest::Test
   end
 
   def test_line_string_parsing
-    parser = Parser.from_wkt('LINESTRING (30 10, 10 30, 40 40)')
+    parser = Parser.from_wkt('LINESTRING(30.0 10.0, 10.0 30.0, 40.0 40.0)')
 
-    assert_equal parser.to_wkt, 'LINESTRING (30.0 10.0, 10.0 30.0, 40.0 40.0)'
+    assert_equal parser.to_wkt, 'LINESTRING(30.0 10.0, 10.0 30.0, 40.0 40.0)'
     assert_equal parser.points, [
       Point.new(x: 30, y: 10, z: nil),
       Point.new(x: 10, y: 30, z: nil),
@@ -84,7 +84,7 @@ class ParserTest < Minitest::Test
   end
 
   def test_line_string_z_parsing
-    parser = Parser.from_wkt('LINESTRING Z (30 10 40, 10 30 20, 40 40 10)')
+    parser = Parser.from_wkt('LINESTRING Z (30.0 10.0 40.0, 10.0 30.0 20.0, 40.0 40.0 10.0)')
 
     assert_equal parser.to_wkt, 'LINESTRING Z (30.0 10.0 40.0, 10.0 30.0 20.0, 40.0 40.0 10.0)'
     assert_equal parser.points, [
@@ -143,10 +143,6 @@ class TransfromTest < Minitest::Test
   def test_long_2d_linestings
     long_3d_4326_points = Parser.from_wkt(File.open("test/long_3d_4326_linestring.txt").read.strip).points
     long_3d_6691_points = Parser.from_wkt(File.open("test/long_3d_6691_linestring.txt").read.strip).points
-
-    Transfrom.new(long_3d_4326_points).execute.zip(long_3d_6691_points).each do |p_a, p_b|
-      byebug if p_a != p_b
-    end
 
     assert_equal Transfrom.new(long_3d_4326_points).execute, long_3d_6691_points
   end
