@@ -1,6 +1,41 @@
 require 'minitest/autorun'
 require 'byebug'
 
+class WktCs2Cs
+  def initialize(from_cs, to_cs)
+    @from_cs = from_cs
+    @to_cs = to_cs
+  end
+
+  def parse(well_known_text)
+    well_known_text
+  end
+end
+
+class WktCs2CsSameCsTest < Minitest::Test
+  def cs2cs
+    WktCs2Cs.new('EPSG:4326', 'EPSG:4326')
+  end
+
+  def test_point_parsing
+    assert_equal cs2cs.parse('POINT(30.0 10.0)'), 'POINT(30.0 10.0)'
+  end
+
+  def test_point_z_parsing
+    assert_equal cs2cs.parse('POINT Z (30.0 10.0 5.0)'), 'POINT Z (30.0 10.0 5.0)'
+  end
+
+  def test_line_string_parsing
+    assert_equal cs2cs.parse('LINESTRING(30.0 10.0, 10.0 30.0, 40.0 40.0)'),
+      'LINESTRING(30.0 10.0, 10.0 30.0, 40.0 40.0)'
+  end
+
+  def test_line_string_z_parsing
+    assert_equal cs2cs.parse('LINESTRING Z (30.0 10.0 40.0, 10.0 30.0 20.0, 40.0 40.0 10.0)'),
+      'LINESTRING Z (30.0 10.0 40.0, 10.0 30.0 20.0, 40.0 40.0 10.0)'
+  end
+end
+
 class Parser
   POINT = /\APOINT\ ?\((?<points>[\d\.\-\ ]+)\)\z/
   POINT_Z = /\APOINT\ ?Z\ \((?<points>[\d\.\-\ ]+)\)\z/
