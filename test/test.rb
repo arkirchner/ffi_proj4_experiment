@@ -8,7 +8,78 @@ class WktCs2Cs
   end
 
   def parse(well_known_text)
-    well_known_text
+    parsed_wky = WktParser.parse(well_known_text)
+
+    %x{echo '#{parsed_wky.point_list_text}' | cs2cs -d 12 '#{@from_cs}' '#{@to_cs}'}
+      .strip
+      .then { |point_list_text| WktBuilder.new(point_list_text, parsed_wky.type).build }
+  end
+
+  class WktBuilder
+    def initialize(point_list_text, type)
+      @point_list_text = point_list_text
+      @type = type
+    end
+
+    def build
+      case @type
+      when :point
+        "POINT(#{point_list_text})"
+      when :point_z
+        "POINT Z (#{point_list_text})"
+      when :linestring
+        "LINESTRING(#{point_list_text})"
+      when :linestring_z
+        "LINESTRING Z (#{point_list_text})"
+      end
+    end
+
+    def has_z?
+      @type.to_s.end_with?('_z')
+    end
+
+    def point_list_text
+      @point_list_text
+        .split("\n")
+        .map { |p| p.split(" ").map(&:to_f) }
+        .map { |p| has_z? ? p : p.first(2) }
+        .map { |p| p.join(' ') }.join(', ')
+    end
+  end
+
+  class WktParser
+    POINT = /\APOINT\ ?\((?<points>[\d\.\-\ ]+)\)\z/
+    POINT_Z = /\APOINT\ ?Z\ \((?<points>[\d\.\-\ ]+)\)\z/
+    LINESTRING = /\ALINESTRING\ ?\((?<points>[\d\.,\-\ ]+)\)\z$/
+    LINESTRING_Z = /\ALINESTRING\ ?Z\ \((?<points>[\d\.,\-\ ]+)\)\z/
+
+    def self.parse(well_known_text)
+      point_list_text =  case well_known_text.strip
+                when POINT
+                  type = :point
+                  well_known_text.match(POINT)[:points]
+                when POINT_Z
+                  type = :point_z
+                  well_known_text.match(POINT_Z)[:points]
+                when LINESTRING
+                  type = :linestring
+                  well_known_text.match(LINESTRING)[:points]
+                when LINESTRING_Z
+                  type = :linestring_z
+                  well_known_text.match(LINESTRING_Z)[:points]
+                else
+                  raise "Unsupported format: #{well_known_text}"
+                end.split(',').join("\n")
+
+      new(point_list_text, type)
+    end
+
+    def initialize(point_list_text, type)
+      @point_list_text = point_list_text
+      @type = type
+    end
+
+    attr_reader :point_list_text, :type
   end
 end
 
