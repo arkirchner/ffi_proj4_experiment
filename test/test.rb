@@ -31,6 +31,8 @@ class WktCs2Cs
         "LINESTRING(#{point_list_text})"
       when :linestring_z
         "LINESTRING Z (#{point_list_text})"
+      when :polygon
+        "POLYGON((#{point_list_text}))"
       end
     end
 
@@ -52,6 +54,7 @@ class WktCs2Cs
     POINT_Z = /\APOINT\ ?Z\ \((?<points>[\d\.\-\ ]+)\)\z/
     LINESTRING = /\ALINESTRING\ ?\((?<points>[\d\.,\-\ ]+)\)\z$/
     LINESTRING_Z = /\ALINESTRING\ ?Z\ \((?<points>[\d\.,\-\ ]+)\)\z/
+    POLYGON = /\APOLYGON\ ?\(\((?<points>[\d\.,\-\ ]+)\)\)\z$/
 
     def self.parse(well_known_text)
       point_list_text =  case well_known_text.strip
@@ -67,6 +70,9 @@ class WktCs2Cs
                 when LINESTRING_Z
                   type = :linestring_z
                   well_known_text.match(LINESTRING_Z)[:points]
+                when POLYGON
+                  type = :polygon
+                  well_known_text.match(POLYGON)[:points]
                 else
                   raise "Unsupported format: #{well_known_text}"
                 end.split(',').join("\n")
@@ -104,6 +110,11 @@ class WktCs2CsSameCsTest < Minitest::Test
   def test_line_string_z_parsing
     assert_equal cs2cs.parse('LINESTRING Z (30.0 10.0 40.0, 10.0 30.0 20.0, 40.0 40.0 10.0)'),
       'LINESTRING Z (30.0 10.0 40.0, 10.0 30.0 20.0, 40.0 40.0 10.0)'
+  end
+
+  def test_polygon_parsing
+    assert_equal cs2cs.parse('POLYGON((30.0 10.0, 40.0 40.0, 20.0 40.0, 10.0 20.0, 30.0 10.0))'),
+      'POLYGON((30.0 10.0, 40.0 40.0, 20.0 40.0, 10.0 20.0, 30.0 10.0))'
   end
 end
 
