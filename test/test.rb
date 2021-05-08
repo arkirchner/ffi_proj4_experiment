@@ -75,7 +75,8 @@ class WktCs2Cs
                   well_known_text.match(POLYGON)[:points]
                 else
                   raise "Unsupported format: #{well_known_text}"
-                end.split(',').join("\n")
+                end.split(',')
+                  .join("\n")
 
       new(point_list_text, type)
     end
@@ -89,32 +90,53 @@ class WktCs2Cs
   end
 end
 
-class WktCs2CsSameCsTest < Minitest::Test
-  def cs2cs
-    WktCs2Cs.new('EPSG:4326', 'EPSG:4326')
+class WktCs2CsParseAndParseBackTest < Minitest::Test
+  def parse_and_parse_back(well_known_text)
+    WktCs2Cs.new('EPSG:6691', 'EPSG:4326').parse(WktCs2Cs.new('EPSG:4326', 'EPSG:6691').parse(well_known_text))
   end
 
   def test_point_parsing
-    assert_equal cs2cs.parse('POINT(30.0 10.0)'), 'POINT(30.0 10.0)'
+    assert_equal_well_known_text parse_and_parse_back('POINT(30.0 10.0)'), 'POINT(30.0 10.0)', 0
   end
 
   def test_point_z_parsing
-    assert_equal cs2cs.parse('POINT Z (30.0 10.0 5.0)'), 'POINT Z (30.0 10.0 5.0)'
+    assert_equal_well_known_text parse_and_parse_back('POINT Z (30.0 10.0 5.0)'), 'POINT Z (30.0 10.0 5.0)', 0
   end
 
   def test_line_string_parsing
-    assert_equal cs2cs.parse('LINESTRING(30.0 10.0, 10.0 30.0, 40.0 40.0)'),
-      'LINESTRING(30.0 10.0, 10.0 30.0, 40.0 40.0)'
+    assert_equal_well_known_text parse_and_parse_back('LINESTRING(30.0 10.0, 10.0 30.0, 40.0 40.0)'),
+      'LINESTRING(30.0 10.0, 10.0 30.0, 40.0 40.0)', 0.00000001
   end
 
   def test_line_string_z_parsing
-    assert_equal cs2cs.parse('LINESTRING Z (30.0 10.0 40.0, 10.0 30.0 20.0, 40.0 40.0 10.0)'),
-      'LINESTRING Z (30.0 10.0 40.0, 10.0 30.0 20.0, 40.0 40.0 10.0)'
+    assert_equal_well_known_text parse_and_parse_back('LINESTRING Z (30.0 10.0 40.0, 10.0 30.0 20.0, 40.0 40.0 10.0)'),
+      'LINESTRING Z (30.0 10.0 40.0, 10.0 30.0 20.0, 40.0 40.0 10.0)', 0.00000001
   end
 
   def test_polygon_parsing
-    assert_equal cs2cs.parse('POLYGON((30.0 10.0, 40.0 40.0, 20.0 40.0, 10.0 20.0, 30.0 10.0))'),
-      'POLYGON((30.0 10.0, 40.0 40.0, 20.0 40.0, 10.0 20.0, 30.0 10.0))'
+    assert_equal_well_known_text parse_and_parse_back('POLYGON((30.0 10.0, 40.0 40.0, 20.0 40.0, 10.0 20.0, 30.0 10.0))'),
+      'POLYGON((30.0 10.0, 40.0 40.0, 20.0 40.0, 10.0 20.0, 30.0 10.0))', 0.00000001
+  end
+end
+
+class WtkCs2CsTransformationTest < Minitest::Test
+  def cs2cs
+    WktCs2Cs.new('EPSG:4326', 'EPSG:6691')
+  end
+
+  def test_long_2d_linestings
+    assert_equal_well_known_text cs2cs.parse(File.open("test/long_2d_4326_linestring.txt").read.strip),
+      File.open("test/long_2d_6691_linestring.txt").read.strip, 0.0000001
+  end
+end
+
+def assert_equal_well_known_text(expectation, actual, delta)
+  a_p = WktCs2Cs::WktParser.parse(expectation).point_list_text.split("\n").map { |p_s| p_s.split(' ').map(&:to_f) }
+  b_p = WktCs2Cs::WktParser.parse(actual).point_list_text.split("\n").map { |p_s| p_s.split(' ').map(&:to_f) }
+  a_p.zip(b_p).each do |a_p, b_p|
+    assert_in_delta a_p[0], b_p[0], delta
+    assert_in_delta a_p[1], b_p[1], delta
+    assert_equal a_p[2], b_p[2] if a_p[2] || b_p[2]
   end
 end
 
