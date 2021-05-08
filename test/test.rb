@@ -2,15 +2,17 @@ require 'minitest/autorun'
 require 'byebug'
 
 class WktCs2Cs
-  def initialize(from_cs, to_cs)
+  def initialize(from_cs, to_cs, reverse_input: false, reverse_output: false)
     @from_cs = from_cs
     @to_cs = to_cs
+    @reverse_input = reverse_input
+    @reverse_output = reverse_output
   end
 
   def parse(well_known_text)
     parsed_wky = WktParser.parse(well_known_text)
 
-    %x{echo '#{parsed_wky.point_list_text}' | cs2cs -d 12 '#{@from_cs}' '#{@to_cs}'}
+    %x{echo '#{parsed_wky.point_list_text}' | cs2cs -d 12 #{'-r' if @reverse_input} #{'-s' if @reverse_output} '#{@from_cs}' '#{@to_cs}'}
       .strip
       .then { |point_list_text| WktBuilder.new(point_list_text, parsed_wky.type).build }
   end
@@ -91,42 +93,44 @@ class WktCs2Cs
 end
 
 class WktCs2CsParseAndParseBackTest < Minitest::Test
+  DELTA = 0.0000001
+
   def parse_and_parse_back(well_known_text)
-    WktCs2Cs.new('EPSG:6691', 'EPSG:4326').parse(WktCs2Cs.new('EPSG:4326', 'EPSG:6691').parse(well_known_text))
+    WktCs2Cs.new('EPSG:6691', 'EPSG:4326', reverse_output: true).parse(WktCs2Cs.new('EPSG:4326', 'EPSG:6691', reverse_input: true).parse(well_known_text))
   end
 
   def test_point_parsing
-    assert_equal_well_known_text parse_and_parse_back('POINT(30.0 10.0)'), 'POINT(30.0 10.0)', 0
+    assert_equal_well_known_text parse_and_parse_back('POINT(30.0 10.0)'), 'POINT(30.0 10.0)', DELTA
   end
 
   def test_point_z_parsing
-    assert_equal_well_known_text parse_and_parse_back('POINT Z (30.0 10.0 5.0)'), 'POINT Z (30.0 10.0 5.0)', 0
+    assert_equal_well_known_text parse_and_parse_back('POINT Z (30.0 10.0 5.0)'), 'POINT Z (30.0 10.0 5.0)', DELTA
   end
 
   def test_line_string_parsing
     assert_equal_well_known_text parse_and_parse_back('LINESTRING(30.0 10.0, 10.0 30.0, 40.0 40.0)'),
-      'LINESTRING(30.0 10.0, 10.0 30.0, 40.0 40.0)', 0.00000001
+      'LINESTRING(30.0 10.0, 10.0 30.0, 40.0 40.0)', DELTA
   end
 
   def test_line_string_z_parsing
     assert_equal_well_known_text parse_and_parse_back('LINESTRING Z (30.0 10.0 40.0, 10.0 30.0 20.0, 40.0 40.0 10.0)'),
-      'LINESTRING Z (30.0 10.0 40.0, 10.0 30.0 20.0, 40.0 40.0 10.0)', 0.00000001
+      'LINESTRING Z (30.0 10.0 40.0, 10.0 30.0 20.0, 40.0 40.0 10.0)', DELTA
   end
 
   def test_polygon_parsing
     assert_equal_well_known_text parse_and_parse_back('POLYGON((30.0 10.0, 40.0 40.0, 20.0 40.0, 10.0 20.0, 30.0 10.0))'),
-      'POLYGON((30.0 10.0, 40.0 40.0, 20.0 40.0, 10.0 20.0, 30.0 10.0))', 0.00000001
+      'POLYGON((30.0 10.0, 40.0 40.0, 20.0 40.0, 10.0 20.0, 30.0 10.0))', DELTA
   end
 end
 
 class WtkCs2CsTransformationTest < Minitest::Test
   def cs2cs
-    WktCs2Cs.new('EPSG:4326', 'EPSG:6691')
+    WktCs2Cs.new('EPSG:4326', 'EPSG:6691', reverse_input: true)
   end
 
   def test_long_2d_linestings
     assert_equal_well_known_text cs2cs.parse(File.open("test/long_2d_4326_linestring.txt").read.strip),
-      File.open("test/long_2d_6691_linestring.txt").read.strip, 0.0000001
+      File.open("test/long_2d_6691_linestring.txt").read.strip, 0.000001
   end
 end
 
