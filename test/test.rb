@@ -121,6 +121,16 @@ class WktCs2CsParseAndParseBackTest < Minitest::Test
     assert_equal_well_known_text parse_and_parse_back('POLYGON((30.0 10.0, 40.0 40.0, 20.0 40.0, 10.0 20.0, 30.0 10.0))'),
       'POLYGON((30.0 10.0, 40.0 40.0, 20.0 40.0, 10.0 20.0, 30.0 10.0))', DELTA
   end
+
+  def test_long_2d_linesting_parsing
+    assert_equal_well_known_text parse_and_parse_back(File.open("test/long_2d_4326_linestring.txt").read.strip),
+      File.open("test/long_2d_4326_linestring.txt").read.strip, DELTA
+  end
+
+  def test_long_3d_linesting_parsing
+    assert_equal_well_known_text parse_and_parse_back(File.open("test/long_3d_4326_linestring.txt").read.strip),
+      File.open("test/long_3d_4326_linestring.txt").read.strip, DELTA
+  end
 end
 
 class WtkCs2CsTransformationTest < Minitest::Test
@@ -128,9 +138,14 @@ class WtkCs2CsTransformationTest < Minitest::Test
     WktCs2Cs.new('EPSG:4326', 'EPSG:6691', reverse_input: true)
   end
 
-  def test_long_2d_linestings
+  def test_long_2d_linesting
     assert_equal_well_known_text cs2cs.parse(File.open("test/long_2d_4326_linestring.txt").read.strip),
       File.open("test/long_2d_6691_linestring.txt").read.strip, 0.000001
+  end
+
+  def test_long_3d_linesting
+    assert_equal_well_known_text cs2cs.parse(File.open("test/long_3d_4326_linestring.txt").read.strip),
+      File.open("test/long_3d_6691_linestring.txt").read.strip, 0.000001
   end
 end
 
