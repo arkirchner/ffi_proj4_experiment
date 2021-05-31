@@ -12,9 +12,10 @@ class WktCs2Cs
   def parse(well_known_text)
     parsed_wky = WktParser.parse(well_known_text)
 
-    %x{echo '#{parsed_wky.point_list_text}' | cs2cs -d 12 #{'-r' if @reverse_input} #{'-s' if @reverse_output} '#{@from_cs}' '#{@to_cs}'}
+    transformed_wkt = %x{echo '#{parsed_wky.point_list_text}' | cs2cs -d 12 #{'-r' if @reverse_input} #{'-s' if @reverse_output} '#{@from_cs}' '#{@to_cs}'}
       .strip
-      .then { |point_list_text| WktBuilder.new(point_list_text, parsed_wky.type).build }
+
+    WktBuilder.new(transformed_wkt, parsed_wky.type).build
   end
 
   class WktBuilder
@@ -136,6 +137,12 @@ end
 class WtkCs2CsTransformationTest < Minitest::Test
   def cs2cs
     WktCs2Cs.new('EPSG:4326', 'EPSG:6691', reverse_input: true)
+  end
+
+  def test_invalid_wkt
+    assert_raises RuntimeError do
+      cs2cs.parse('POINT(30.0 1a.0)')
+    end
   end
 
   def test_long_2d_linesting
